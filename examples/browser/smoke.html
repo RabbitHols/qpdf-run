@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>qpdf-run browser smoke</title>
+  </head>
+  <body>
+    <pre id="status">Starting qpdf-run browser smoke...</pre>
+    <script id="qpdf-run-smoke-result" type="application/json"></script>
+
+    <script type="module">
+      import { createQpdfRunner } from '../../src/index.js';
+
+      var status = document.getElementById('status');
+      var resultScript = document.getElementById('qpdf-run-smoke-result');
+
+      runSmoke();
+
+      async function runSmoke() {
+        var qpdf;
+        try {
+          qpdf = await createQpdfRunner({
+            assetBaseUrl: new URL('../../vendor/qpdf/', import.meta.url).href
+          });
+
+          var first = await runQdf(qpdf);
+          var second = await runQdf(qpdf);
+          var missingOutputCode = await runMissingOutputCheck(qpdf);
+
+          publish({
+            ok: true,
+            firstBytes: first.outputs['output.qdf.pdf'].byteLength,
+            secondBytes: second.outputs['output.qdf.pdf'].byteLength,
+            missingOutputCode: missingOutputCode,
+            stdout: first.stdout,
+            stderr: first.stderr,
+            warnings: first.warnings,
+            exitCode: first.exitCode
+          });
+        } catch (error) {
+          publish({
+            ok: false,
+            message: error && error.message || String(error),
+            stack: error && error.stack || null,
+            code: error && error.code || null,
+            stdout: error && error.stdout || null,
+            stderr: error && error.stderr || null,
+            exitCode: Number.isFinite(error && error.exitCode) ? error.exitCode : null
+          });
+        } finally {
+          if (qpdf) await qpdf.destroy();
+        }
+      }
+
+      async function runQdf(qpdf) {
+        return await qpdf.run({
+          inputs: {
+            'input.pdf': makeTinyPdf()
+          },
+          args: ['--qdf', '--object-streams=disable', '--decode-level=all', '--', 'input.pdf', 'output.qdf.pdf'],
+          outputs: ['output.qdf.pdf']
+        });
+      }
+
+      async function runMissingOutputCheck(qpdf) {
+        try {
+          await qpdf.run({
+            inputs: {
+              'input.pdf': makeTinyPdf()
+            },
+            args: ['--check', '--', 'input.pdf'],
+            outputs: ['missing.pdf']
+          });
+        } catch (error) {
+          if (error && error.code === 'QPDF_OUTPUT_MISSING') return error.code;
+          throw error;
+        }
+        throw new Error('Expected QPDF_OUTPUT_MISSING for missing output smoke check.');
+      }
+
+      function publish(result) {
+        window.qpdfRunSmokeResult = result;
+        var json = JSON.stringify(result, null, 2);
+        status.textContent = json;
+        resultScript.textContent = json;
+        document.documentElement.setAttribute('data-smoke-ok', result.ok ? 'true' : 'false');
+      }
+
+      function makeTinyPdf() {
+        var encoder = new TextEncoder();
+        var header = '%PDF-1.4\n';
+        var objects = [
+          '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+          '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+          '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n',
+          makeStreamObject('BT\n/F1 12 Tf\n72 720 Td\n(qpdf-run smoke) Tj\nET\n'),
+          '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n'
+        ];
+        var offsets = [];
+        var body = header;
+
+        objects.forEach(function(object) {
+          offsets.push(encoder.encode(body).byteLength);
+          body += object;
+        });
+
+        var xrefOffset = encoder.encode(body).byteLength;
+        body += 'xref\n0 6\n';
+        body += '0000000000 65535 f \n';
+        offsets.forEach(function(offset) {
+          body += String(offset).padStart(10, '0') + ' 00000 n \n';
+        });
+        body += 'trailer\n<< /Size 6 /Root 1 0 R >>\n';
+        body += 'startxref\n' + xrefOffset + '\n%%EOF\n';
+
+        return encoder.encode(body);
+      }
+
+      function makeStreamObject(stream) {
+        return '4 0 obj\n<< /Length ' + new TextEncoder().encode(stream).byteLength + ' >>\nstream\n' + stream + 'endstream\nendobj\n';
+      }
+    </script>
+  </body>
+</html>
