@@ -1,12 +1,15 @@
 {
   "name": "qpdf-run",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Run qpdf WASM in the browser with a Uint8Array-first API.",
   "exports": {
     ".": {
       "types": "./src/index.d.ts",
       "import": "./src/index.js"
-    }
+    },
+    "./worker": "./src/worker.js",
+    "./qpdf.js": "./vendor/qpdf/lib/qpdf.js",
+    "./qpdf.wasm": "./vendor/qpdf/lib/qpdf.wasm"
   },
   "types": "./src/index.d.ts",
   "type": "module",
@@ -23,6 +26,7 @@
     "src",
     "vendor/qpdf",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {

@@ -3,10 +3,9 @@ import { createQpdfRunError, toUint8Array } from './bytes.js';
 export async function createBrowserQpdfRunner(options) {
   options = options || {};
 
-  var defaultAssetBaseUrl = new URL('../vendor/qpdf/', import.meta.url).href;
-  var assetBaseUrl = resolveUrl(options.assetBaseUrl || defaultAssetBaseUrl);
-  var qpdfJsUrl = resolveUrl(options.qpdfJsUrl || joinBaseUrl(assetBaseUrl, 'lib/qpdf.js'));
-  var wasmUrl = resolveUrl(options.wasmUrl || joinBaseUrl(assetBaseUrl, 'lib/qpdf.wasm'));
+  var assetBaseUrl = options.assetBaseUrl ? resolveUrl(options.assetBaseUrl) : null;
+  var qpdfJsUrl = resolveUrl(options.qpdfJsUrl || (assetBaseUrl ? joinBaseUrl(assetBaseUrl, 'lib/qpdf.js') : new URL('../vendor/qpdf/lib/qpdf.js', import.meta.url).href));
+  var wasmUrl = resolveUrl(options.wasmUrl || (assetBaseUrl ? joinBaseUrl(assetBaseUrl, 'lib/qpdf.wasm') : new URL('../vendor/qpdf/lib/qpdf.wasm', import.meta.url).href));
   var workerUrl = options.workerUrl || new URL('./worker.js', import.meta.url).href;
   var timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 20000;
   var worker = createWorker(workerUrl);

@@ -57,6 +57,12 @@ Included pieces:
 - `examples/browser/index.html`: manual browser demo
 - `examples/browser/smoke.html`: automated browser smoke page
 
+Bundler-safe asset subpaths:
+
+- `qpdf-run/worker`: browser worker script
+- `qpdf-run/qpdf.js`: Emscripten qpdf JavaScript runtime
+- `qpdf-run/qpdf.wasm`: qpdf WASM binary
+
 ## API
 
 ### `run()`
@@ -137,6 +143,16 @@ const linearized = await qpdf.runOne({
 - `workerUrl`: explicit URL for `src/worker.js`
 - `timeoutMs`: worker request timeout; defaults to `20000`
 - `env`: currently only `'browser'`
+
+When a host app uses a bundler, prefer resolving explicit URLs through the package exports:
+
+```js
+const workerUrl = new URL('qpdf-run/worker', import.meta.url).href;
+const qpdfJsUrl = new URL('qpdf-run/qpdf.js', import.meta.url).href;
+const wasmUrl = new URL('qpdf-run/qpdf.wasm', import.meta.url).href;
+
+const qpdf = await createQpdfRunner({ workerUrl, qpdfJsUrl, wasmUrl });
+```
 
 ## Results And Errors
 
