@@ -81,7 +81,9 @@ async function handleRun(message) {
     writeInputs(message.inputs);
 
     var exitCode = executeQpdf(message.args || []);
-    if (exitCode !== 0) {
+    // Exit code 3 means "success with warnings" in QPDF — the output file is produced.
+    // Only treat non-zero codes other than 3 as fatal errors.
+    if (exitCode !== 0 && exitCode !== 3) {
       throw makeWorkerError('QPDF_EXEC_FAILED', 'qpdf exited with status ' + exitCode, exitCode);
     }
 
