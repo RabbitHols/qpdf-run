@@ -1,5 +1,5 @@
 /* eslint-env worker */
-/* global FS, callMain, EXITSTATUS */
+/* global FS, TTY, callMain, EXITSTATUS */
 
 var qpdfReady = false;
 var qpdfInitError = null;
@@ -81,13 +81,14 @@ async function handleRun(message) {
     writeInputs(message.inputs);
 
     var exitCode = executeQpdf(message.args || []);
-    // Exit code 3 means "success with warnings" in QPDF — the output file is produced.
-    // Only treat non-zero codes other than 3 as fatal errors.
+    flushPendingTtyOutput();
+    // Exit code 3 means QPDF completed with warnings. Treat it as success,
+    // then let the expected-output check decide whether bytes were produced.
     if (exitCode !== 0 && exitCode !== 3) {
       throw makeWorkerError('QPDF_EXEC_FAILED', 'qpdf exited with status ' + exitCode, exitCode);
     }
 
-    var outputs = readOutputs(outputNames);
+    var outputs = readOutputs(outputNames, exitCode);
     cleanupFiles(touched);
 
     var transfers = Object.keys(outputs).map(function(name) {
@@ -148,8 +149,8 @@ function validateRunMessage(message) {
   if (!Array.isArray(message.args) || !message.args.length) {
     throw makeWorkerError('QPDF_INVALID_INPUT', 'qpdf.run requires args.');
   }
-  if (!Array.isArray(message.outputs) || !message.outputs.length) {
-    throw makeWorkerError('QPDF_INVALID_INPUT', 'qpdf.run requires outputs.');
+  if (message.outputs !== undefined && !Array.isArray(message.outputs)) {
+    throw makeWorkerError('QPDF_INVALID_INPUT', 'qpdf.run outputs must be an array when provided.');
   }
 }
 
@@ -172,11 +173,35 @@ function executeQpdf(args) {
   return Number.isFinite(status) ? status : 0;
 }
 
-function readOutputs(outputNames) {
+function flushPendingTtyOutput() {
+  flushTtyOutput(1, currentStdout);
+  flushTtyOutput(2, currentStderr);
+}
+
+function flushTtyOutput(fd, target) {
+  try {
+    if (typeof TTY === 'undefined' || !TTY.ttys || !TTY.ttys[fd]) return;
+    var output = TTY.ttys[fd].output || [];
+    if (!output.length) return;
+    target.push(decodeBytes(output));
+    TTY.ttys[fd].output = [];
+  } catch (error) {
+    target.push('failed to flush qpdf tty output: ' + (error && error.message || String(error)));
+  }
+}
+
+function decodeBytes(bytes) {
+  if (typeof TextDecoder !== 'undefined') {
+    return new TextDecoder().decode(new Uint8Array(bytes));
+  }
+  return String.fromCharCode.apply(null, bytes);
+}
+
+function readOutputs(outputNames, exitCode) {
   var outputs = {};
   outputNames.forEach(function(name) {
     if (!FS.analyzePath(name).exists) {
-      throw makeWorkerError('QPDF_OUTPUT_MISSING', 'qpdf did not produce expected output: ' + name, null);
+      throw makeWorkerError('QPDF_OUTPUT_MISSING', 'qpdf did not produce expected output: ' + name, exitCode);
     }
     var bytes = FS.readFile(name, { encoding: 'binary' });
     outputs[name] = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
@@ -209,7 +234,7 @@ function getExitStatus() {
 
 function getWarnings(stderr) {
   return (stderr || []).filter(function(line) {
-    return /^warning:/i.test(String(line).trim());
+    return /(^|:\s*)warning:/i.test(String(line).trim());
   });
 }
 

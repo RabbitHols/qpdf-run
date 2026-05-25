@@ -28,7 +28,7 @@ export interface QpdfRunnerOptions {
 export interface QpdfRunOptions {
   inputs: Record<string, QpdfInputBytes>;
   args: string[];
-  outputs: string[];
+  outputs?: string[];
 }
 
 export interface QpdfRunOneOptions {

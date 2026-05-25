@@ -52,8 +52,11 @@ server.listen(0, '127.0.0.1', async () => {
     if (result.missingOutputCode !== 'QPDF_OUTPUT_MISSING') {
       throw new Error(`Browser smoke did not verify missing output errors: ${JSON.stringify(result)}`);
     }
+    if (result.pageCount !== '1') {
+      throw new Error(`Browser smoke did not verify no-output inspection stdout: ${JSON.stringify(result)}`);
+    }
 
-    console.log(`browser smoke ok: ${result.firstBytes} bytes, then ${result.secondBytes} bytes; missing output => ${result.missingOutputCode}`);
+    console.log(`browser smoke ok: ${result.firstBytes} bytes, then ${result.secondBytes} bytes; missing output => ${result.missingOutputCode}; pages => ${result.pageCount}`);
   } catch (error) {
     console.error(error && error.stack || String(error));
     process.exitCode = 1;

@@ -96,6 +96,19 @@ try {
 }
 ```
 
+For inspection commands that only write to stdout, omit `outputs`:
+
+```js
+const result = await qpdf.run({
+  inputs: {
+    'input.pdf': pdfBytes
+  },
+  args: ['--show-npages', 'input.pdf']
+});
+
+const pageCount = result.stdout.join('\n').trim();
+```
+
 ### `runOne()`
 
 For a single input and output:
@@ -156,7 +169,7 @@ const qpdf = await createQpdfRunner({ workerUrl, qpdfJsUrl, wasmUrl });
 
 ## Results And Errors
 
-`run()` resolves with:
+`run()` resolves with stdout/stderr and any requested output files:
 
 ```ts
 type QpdfRunResult = {
@@ -180,7 +193,7 @@ Failures throw `QpdfRunError` with one of:
 
 ## Browser Smoke
 
-The automated browser smoke test starts a local static server, launches headless Chrome, runs qpdf twice, and verifies that a missing requested output throws `QPDF_OUTPUT_MISSING`.
+The automated browser smoke test starts a local static server, launches headless Chrome, runs qpdf twice, verifies that a missing requested output throws `QPDF_OUTPUT_MISSING`, and checks stdout from a no-output inspection command.
 
 ```bash
 npm run check

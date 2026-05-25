@@ -1,6 +1,6 @@
 {
   "name": "qpdf-run",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "Run qpdf WASM in the browser with a Uint8Array-first API.",
   "exports": {
     ".": {

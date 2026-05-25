@@ -27,12 +27,14 @@
           var first = await runQdf(qpdf);
           var second = await runQdf(qpdf);
           var missingOutputCode = await runMissingOutputCheck(qpdf);
+          var pageCount = await runNoOutputInspection(qpdf);
 
           publish({
             ok: true,
             firstBytes: first.outputs['output.qdf.pdf'].byteLength,
             secondBytes: second.outputs['output.qdf.pdf'].byteLength,
             missingOutputCode: missingOutputCode,
+            pageCount: pageCount,
             stdout: first.stdout,
             stderr: first.stderr,
             warnings: first.warnings,
@@ -77,6 +79,20 @@
           throw error;
         }
         throw new Error('Expected QPDF_OUTPUT_MISSING for missing output smoke check.');
+      }
+
+      async function runNoOutputInspection(qpdf) {
+        var result = await qpdf.run({
+          inputs: {
+            'input.pdf': makeTinyPdf()
+          },
+          args: ['--show-npages', 'input.pdf']
+        });
+        var pageCount = (result.stdout || []).join('\n').trim();
+        if (pageCount !== '1') {
+          throw new Error('Expected --show-npages stdout to be 1, got: ' + pageCount);
+        }
+        return pageCount;
       }
 
       function publish(result) {

@@ -98,8 +98,8 @@ function validateRunOptions(options) {
   if (!Array.isArray(options.args) || !options.args.length) {
     throw createQpdfRunError('QPDF_INVALID_INPUT', 'qpdf.run requires args.');
   }
-  if (!Array.isArray(options.outputs) || !options.outputs.length) {
-    throw createQpdfRunError('QPDF_INVALID_INPUT', 'qpdf.run requires at least one output name.');
+  if (options.outputs !== undefined && !Array.isArray(options.outputs)) {
+    throw createQpdfRunError('QPDF_INVALID_INPUT', 'qpdf.run outputs must be an array when provided.');
   }
 }
 
@@ -112,7 +112,7 @@ function makeRunMessage(options) {
     type: 'run',
     inputs: inputs,
     args: options.args.slice(),
-    outputs: options.outputs.slice()
+    outputs: Array.isArray(options.outputs) ? options.outputs.slice() : []
   };
 }
 
